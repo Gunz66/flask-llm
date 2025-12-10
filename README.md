@@ -22,7 +22,7 @@ Flask LLM Chat — это простое веб-приложение на Flask 
 Откройте терминал или командную строку и выполните:
 
 ```bash
-git clone https://github.com/labintsev/flask-llm.git
+git clone https://github.com/Gunz66/flask-llm
 cd flask-llm
 ```
 
@@ -157,3 +157,4 @@ llm_1 = LLMService('prompts/prompt_2.txt')
 ---
 
 **Если что-то не получилось — пишите в ТГ-чат!**
+# LLM Flask

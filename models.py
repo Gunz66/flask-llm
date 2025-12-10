@@ -2,6 +2,7 @@ from flask_sqlalchemy import SQLAlchemy
 import openai
 import dotenv
 import logging
+import sqlite3
 
 # Настройка логгирования
 logging.basicConfig(level=logging.ERROR, format='%(asctime)s - %(levelname)s - %(message)s')
@@ -38,6 +39,27 @@ class ChatHistory(db.Model):
     timestamp = db.Column(db.DateTime, server_default=db.func.now())  # Временная метка создания записи
 
 
+def load_products_from_db():
+    """
+    Загружает список товаров из SQLite базы данных.
+    
+    Возвращает:
+        list: Список кортежей с данными товаров (id, name, characteristics, price, stock, warranty_years, category)
+    """
+    try:
+        conn = sqlite3.connect('instance/products.db')
+        cursor = conn.cursor()
+        cursor.execute('SELECT id, name, characteristics, price, stock, warranty_years, category FROM products')
+        products_data = cursor.fetchall()
+        conn.close()
+        return products_data
+    except Exception as e:
+        logger.error(f"Ошибка при загрузке товаров из БД: {str(e)}")
+        return []
+
+# Загружаем данные товаров из базы данных
+products_data = load_products_from_db()
+
 class LLMService:
     """
     Класс для взаимодействия с внешней языковой моделью (например, YandexGPT).
@@ -47,16 +69,22 @@ class LLMService:
         client: Клиент OpenAI для обращения к API Yandex.
         model (str): Идентификатор используемой LLM модели.
     """
-    def __init__(self, prompt_file):
+    def __init__(self, prompt_file, products_data):
         """
         Инициализация сервиса LLM.
 
         Аргументы:
             prompt_file (str): Путь к файлу с системным промптом для LLM.
         """
+
+        self.data_text = "\n".join([
+            f"Товар: {row[1]}, Категория: {row[6]}, Характеристики: {row[2]}, Цена: {row[3]} руб., Остаток: {row[4]} шт., Гарантия: {row[5]} лет"
+            for row in products_data
+        ])  
+
         # Читаем системный промпт из файла и сохраняем в атрибут sys_prompt
         with open(prompt_file, encoding='utf-8') as f:
-            self.sys_prompt = f.read()
+            self.sys_prompt = f.read() + "\n" + self.data_text
                 
         try:
             # Создаём клиента OpenAI с вашим API-ключом и базовым URL для Yandex LLM API
@@ -101,8 +129,10 @@ class LLMService:
             return f"Произошла ошибка: {str(e)}"
 
 
-llm_1 = LLMService('prompts/prompt_1.txt')
 
+
+# Инициализируем LLM сервис с загруженными данными товаров
+llm_1 = LLMService('prompts/prompt.txt', products_data)
 
 def chat_with_llm(user_message):
     """
